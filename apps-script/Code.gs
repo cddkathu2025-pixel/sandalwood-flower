@@ -18,31 +18,36 @@ const HEADERS = [
 function doGet() {
   return json_({
     ok: true,
-    service: 'sandalwood-flower',
-    mode: 'safe',
+    message: 'API ทำงานแล้ว',
     sheet: TARGET_SHEET_NAME
   });
 }
 
 function doPost(e) {
   try {
-    const raw = e && e.postData && e.postData.contents;
+    // รองรับทั้ง JSON POST และ form POST จาก GitHub Pages
+    let raw = '';
+    if (e && e.postData && e.postData.contents) {
+      raw = e.postData.contents;
+    }
+
+    // เมื่อส่งผ่าน HTML form จะเข้าทาง e.parameter.payload
+    if ((!raw || raw.trim() === '') && e && e.parameter && e.parameter.payload) {
+      raw = e.parameter.payload;
+    }
+
     if (!raw) throw new Error('ไม่พบข้อมูล POST');
 
     const data = JSON.parse(raw);
     validate_(data);
 
     const ss = SpreadsheetApp.openById(SPREADSHEET_ID);
-
-    // ปลอดภัย: แตะเฉพาะแท็บของระบบนี้เท่านั้น
-    // ถ้ายังไม่มี จะสร้างเฉพาะ Sandalwood_Web
     let sheet = ss.getSheetByName(TARGET_SHEET_NAME);
 
     if (!sheet) {
       sheet = ss.insertSheet(TARGET_SHEET_NAME);
     }
 
-    // ถ้าแท็บว่าง ให้สร้างหัวตาราง
     if (sheet.getLastRow() === 0) {
       sheet.getRange(1, 1, 1, HEADERS.length).setValues([HEADERS]);
       sheet.getRange(1, 1, 1, HEADERS.length)
@@ -52,11 +57,11 @@ function doPost(e) {
       sheet.setFrozenRows(1);
     }
 
-    // ใช้ Lock ป้องกันเลขซ้ำเมื่อมีคนบันทึกพร้อมกัน
     const lock = LockService.getScriptLock();
     lock.waitLock(10000);
 
     try {
+      // แถวที่ 1 คือหัวตาราง ดังนั้นรายการแรกต้องเป็น 1
       const no = Math.max(1, sheet.getLastRow());
 
       sheet.appendRow([
@@ -76,9 +81,9 @@ function doPost(e) {
       return json_({
         ok: true,
         no: no,
-        message: 'บันทึกข้อมูลเรียบร้อยแล้ว'
+        message: 'บันทึกข้อมูลเรียบร้อยแล้ว',
+        sheet: TARGET_SHEET_NAME
       });
-
     } finally {
       lock.releaseLock();
     }
@@ -104,6 +109,18 @@ function validate_(d) {
     d.supportType !== 'สนับสนุนอุปกรณ์'
   ) {
     throw new Error('ประเภทการสนับสนุนไม่ถูกต้อง');
+  }
+
+  if (d.supportType === 'สนับสนุนดอกไม้จันทน์') {
+    if (!d.target || Number(d.target) < 1) {
+      throw new Error('กรุณาระบุเป้าหมายดอกไม้จันทน์');
+    }
+  }
+
+  if (d.supportType === 'สนับสนุนอุปกรณ์') {
+    if (!String(d.equipment || '').trim() || d.equipment === '-') {
+      throw new Error('กรุณาระบุอุปกรณ์ที่สนับสนุน');
+    }
   }
 
   if (!/^[0-9]{9,10}$/.test(String(d.phone))) {
