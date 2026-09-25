@@ -12,7 +12,8 @@ const HEADERS = [
   'วัน/เดือน/ปี ดำเนินการ',
   'วันที่คาดว่าจะส่งมอบ',
   'ผู้ประสาน',
-  'หมายเลขโทรศัพท์'
+  'หมายเลขโทรศัพท์',
+  'วันที่บันทึก'
 ];
 
 function doGet() {
@@ -31,7 +32,6 @@ function doPost(e) {
       raw = e.postData.contents;
     }
 
-    // เมื่อส่งผ่าน HTML form จะเข้าทาง e.parameter.payload
     if ((!raw || raw.trim() === '') && e && e.parameter && e.parameter.payload) {
       raw = e.parameter.payload;
     }
@@ -48,6 +48,7 @@ function doPost(e) {
       sheet = ss.insertSheet(TARGET_SHEET_NAME);
     }
 
+    // สร้างหัวตารางเฉพาะเมื่อแท็บว่าง
     if (sheet.getLastRow() === 0) {
       sheet.getRange(1, 1, 1, HEADERS.length).setValues([HEADERS]);
       sheet.getRange(1, 1, 1, HEADERS.length)
@@ -55,6 +56,15 @@ function doPost(e) {
         .setFontColor('#ffffff')
         .setFontWeight('bold');
       sheet.setFrozenRows(1);
+    } else if (sheet.getLastColumn() < HEADERS.length) {
+      // Migration แบบปลอดภัย: เติมเฉพาะคอลัมน์ที่ขาด ห้าม clear ข้อมูลเดิม
+      const firstMissingCol = sheet.getLastColumn() + 1;
+      const missingHeaders = HEADERS.slice(firstMissingCol - 1);
+      sheet.getRange(1, firstMissingCol, 1, missingHeaders.length)
+        .setValues([missingHeaders])
+        .setBackground('#262626')
+        .setFontColor('#ffffff')
+        .setFontWeight('bold');
     }
 
     const lock = LockService.getScriptLock();
@@ -73,7 +83,8 @@ function doPost(e) {
         data.startDate,
         data.deliveryDate,
         data.coordinator,
-        data.phone
+        data.phone,
+        new Date()
       ]);
 
       SpreadsheetApp.flush();
