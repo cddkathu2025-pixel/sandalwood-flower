@@ -29,15 +29,17 @@
 <label class="block"><span class="font-semibold">วันที่คาดว่าจะส่งมอบ *</span><input id="deliveryDate" type="date" required class="mt-1 w-full border rounded-lg p-3"></label>
 <label class="block"><span class="font-semibold">ผู้ประสาน *</span><input id="coordinator" required class="mt-1 w-full border rounded-lg p-3"></label>
 <label class="block"><span class="font-semibold">หมายเลขโทรศัพท์ *</span><input id="phone" type="tel" pattern="[0-9]{9,10}" required class="mt-1 w-full border rounded-lg p-3"></label>
-<button id="submitBtn" class="w-full bg-neutral-900 text-white rounded-lg p-3 font-bold hover:bg-neutral-700">บันทึกข้อมูล</button>
-<div id="status" class="text-center text-sm"></div>
+<button id="submitBtn" type="submit" class="w-full bg-neutral-900 text-white rounded-lg p-3 font-bold hover:bg-neutral-700">บันทึกข้อมูล</button>
+<div id="status" class="text-center text-sm" aria-live="polite"></div>
 </form>
 </main>
 
 <iframe id="saveFrame" name="saveFrame" style="display:none"></iframe>
 <form id="postForm" method="POST" target="saveFrame" style="display:none">
   <input type="hidden" id="payload" name="payload">
-</form><script>
+</form>
+
+<script>
 const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxtVdDV6VIDv-6GE91Fb0t9q8lakEURGThhPQq9zqEw9Gky80uERioqcY9V5dEi5lXb/exec';
 
 function toggleFields(){
@@ -56,45 +58,59 @@ document.getElementById('supportForm').addEventListener('submit',function(e){
  const btn=document.getElementById('submitBtn');
  const type=document.getElementById('supportType').value;
 
- const data={
-  agency:document.getElementById('agency').value.trim(),
-  supportType:type,
-  target:type==='สนับสนุนดอกไม้จันทน์'?document.getElementById('target').value:'-',
-  equipment:type==='สนับสนุนอุปกรณ์'?document.getElementById('equipment').value.trim():'-',
-  startDate:document.getElementById('startDate').value,
-  deliveryDate:document.getElementById('deliveryDate').value,
-  coordinator:document.getElementById('coordinator').value.trim(),
-  phone:document.getElementById('phone').value.trim()
- };
-
  if(!APPS_SCRIPT_URL){
-  status.textContent='ยังไม่ได้ตั้งค่า Google Apps Script API';
-  status.className='text-center text-sm text-red-600';
-  return;
+   status.textContent='ยังไม่ได้ตั้งค่า Google Apps Script API';
+   status.className='text-center text-sm text-red-600 font-semibold';
+   return;
  }
 
+ const data={
+   agency:document.getElementById('agency').value.trim(),
+   supportType:type,
+   target:type==='สนับสนุนดอกไม้จันทน์'?document.getElementById('target').value:'-',
+   equipment:type==='สนับสนุนอุปกรณ์'?document.getElementById('equipment').value.trim():'-',
+   startDate:document.getElementById('startDate').value,
+   deliveryDate:document.getElementById('deliveryDate').value,
+   coordinator:document.getElementById('coordinator').value.trim(),
+   phone:document.getElementById('phone').value.trim()
+ };
+
  btn.disabled=true;
- status.textContent='กำลังบันทึกข้อมูล...';
+ status.textContent='กำลังส่งข้อมูลไปยังฐานข้อมูล...';
  status.className='text-center text-sm text-gray-600';
 
- // ใช้ HTML form POST ผ่าน iframe แทน fetch/no-cors
- // วิธีนี้ไม่ติด CORS และ Apps Script รับข้อมูลผ่าน e.parameter.payload
- const frame=document.getElementById('saveFrame');
  const postForm=document.getElementById('postForm');
-
  document.getElementById('payload').value=JSON.stringify(data);
  postForm.action=APPS_SCRIPT_URL;
  postForm.target='saveFrame';
- postForm.submit();
 
- // ให้เวลาฝั่ง Apps Script ประมวลผลก่อนแจ้งผล
- setTimeout(function(){
-   status.textContent='บันทึกข้อมูลเรียบร้อยแล้ว ✓';
+ let finished=false;
+ const frame=document.getElementById('saveFrame');
+
+ const finish=function(){
+   if(finished) return;
+   finished=true;
+   frame.removeEventListener('load',finish);
+   clearTimeout(timeoutId);
+
+   status.textContent='ส่งข้อมูลเรียบร้อยแล้ว ✓ กรุณาตรวจสอบรายการในฐานข้อมูล';
    status.className='text-center text-sm text-green-600 font-semibold';
    form.reset();
    toggleFields();
    btn.disabled=false;
- },1500);
+ };
+
+ const timeoutId=setTimeout(function(){
+   if(finished) return;
+   finished=true;
+   frame.removeEventListener('load',finish);
+   status.textContent='ระบบใช้เวลานานกว่าปกติ กรุณาตรวจสอบ Google Sheet ก่อนกดบันทึกซ้ำ';
+   status.className='text-center text-sm text-orange-600 font-semibold';
+   btn.disabled=false;
+ },10000);
+
+ frame.addEventListener('load',finish,{once:true});
+ postForm.submit();
 });
 
 toggleFields();
