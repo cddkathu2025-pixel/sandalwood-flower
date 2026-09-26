@@ -15,16 +15,7 @@ const EXPECTED_HEADERS = [
 function doGet(e) {
   try {
     if (e && e.parameter && e.parameter.action === 'save') {
-      const data = {
-        agency:e.parameter.agency || '',
-        supportType:e.parameter.supportType || '',
-        target:e.parameter.target || '-',
-        equipment:e.parameter.equipment || '-',
-        startDate:e.parameter.startDate || '',
-        deliveryDate:e.parameter.deliveryDate || '',
-        coordinator:e.parameter.coordinator || '',
-        phone:e.parameter.phone || ''
-      };
+      const data = dataFromParams_(e.parameter);
       const result = saveToSandalwood_(data);
       const callback = e.parameter.callback;
       if (callback && /^[A-Za-z_$][A-Za-z0-9_$\.]*$/.test(callback)) {
@@ -32,7 +23,7 @@ function doGet(e) {
           .createTextOutput(callback + '(' + JSON.stringify(result) + ');')
           .setMimeType(ContentService.MimeType.JAVASCRIPT);
       }
-      return result;
+      return jsonResponse_(result);
     }
 
     return HtmlService.createHtmlOutputFromFile('index')
@@ -44,15 +35,43 @@ function doGet(e) {
   }
 }
 
+// รับ POST แบบ application/x-www-form-urlencoded จาก GitHub Pages
+// แล้วตอบกลับเป็น HTML ใน iframe เพื่อส่งผลกลับหน้าเว็บด้วย postMessage
 function doPost(e) {
+  let result;
   try {
-    let raw = e && e.postData && e.postData.contents;
-    if ((!raw || !raw.trim()) && e && e.parameter && e.parameter.payload) raw=e.parameter.payload;
-    if (!raw) throw new Error('ไม่พบข้อมูลที่ส่งมา');
-    return saveToSandalwood_(JSON.parse(raw));
+    const data = dataFromParams_((e && e.parameter) || {});
+    result = saveToSandalwood_(data);
   } catch (err) {
-    return jsonResponse_({ok:false,saved:false,error:String(err.message || err)});
+    result = {ok:false,saved:false,error:String(err.message || err)};
   }
+  return postMessageResponse_(result);
+}
+
+function dataFromParams_(p) {
+  return {
+    agency: p.agency || '',
+    supportType: p.supportType || '',
+    target: p.target || '-',
+    equipment: p.equipment || '-',
+    startDate: p.startDate || '',
+    deliveryDate: p.deliveryDate || '',
+    coordinator: p.coordinator || '',
+    phone: p.phone || ''
+  };
+}
+
+function postMessageResponse_(result) {
+  const payload = JSON.stringify({type:'sheetSaveResult', result:result})
+    .replace(/</g, '\\u003c')
+    .replace(/>/g, '\\u003e')
+    .replace(/&/g, '\\u0026');
+  const html = '<!doctype html><html><body>' +
+    '<script>window.parent.postMessage(' + payload + ', "*");</script>' +
+    '</body></html>';
+
+  return HtmlService.createHtmlOutput(html)
+    .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
 }
 
 function onOpen() {
