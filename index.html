@@ -9,130 +9,125 @@
 </head>
 <body class="bg-gray-100 min-h-screen">
 <header class="bg-neutral-900 text-white py-8 px-4 text-center">
-  <img src="https://s.imgz.io/2026/09/25/images-1540dcf8a8096737f8.jpg" onerror="this.src='https://placehold.co/100x100/333333/FFFFFF?text=Logo'" class="w-24 h-24 rounded-full mx-auto object-cover border-4 border-white/20">
-  <h1 class="text-2xl font-bold mt-4">ระบบบันทึกข้อมูลสนับสนุนการจัดทำดอกไม้จันทน์</h1>
-  <p class="mt-2 text-sm">เพื่อเตรียมความพร้อมเกี่ยวกับพิธีถวายดอกไม้จันทน์ของประชาชนในส่วนภูมิภาค</p>
-  <p class="font-semibold">อำเภอกะทู้ จังหวัดภูเก็ต</p>
-  <p class="text-sm mt-2">ติดต่อประสานงาน สำนักงานพัฒนาชุมชนอำเภอกะทู้ โทร.0940724909</p>
+<img src="https://s.imgz.io/2026/09/25/images-1540dcf8a8096737f8.jpg" onerror="this.src='https://placehold.co/100x100/333333/FFFFFF?text=Logo'" class="w-24 h-24 rounded-full mx-auto object-cover border-4 border-white/20">
+<h1 class="text-2xl font-bold mt-4">ระบบบันทึกข้อมูลสนับสนุนการจัดทำดอกไม้จันทน์</h1>
+<p class="mt-2 text-sm">เพื่อเตรียมความพร้อมเกี่ยวกับพิธีถวายดอกไม้จันทน์ของประชาชนในส่วนภูมิภาค</p>
+<p class="font-semibold">อำเภอกะทู้ จังหวัดภูเก็ต</p>
+<p class="text-sm mt-2">ติดต่อประสานงาน สำนักงานพัฒนาชุมชนอำเภอกะทู้ โทร.0940724909</p>
 </header>
 
 <main class="max-w-2xl mx-auto p-4">
 <form id="supportForm" class="bg-white rounded-2xl shadow p-6 space-y-4">
 <label class="block"><span class="font-semibold">หน่วยงาน *</span><input id="agency" required class="mt-1 w-full border rounded-lg p-3"></label>
-
 <label class="block"><span class="font-semibold">ประเภทการสนับสนุน *</span>
 <select id="supportType" required onchange="toggleFields()" class="mt-1 w-full border rounded-lg p-3">
-<option value="">-- เลือก --</option>
-<option>สนับสนุนดอกไม้จันทน์</option>
-<option>สนับสนุนอุปกรณ์</option>
+<option value="">-- เลือก --</option><option>สนับสนุนดอกไม้จันทน์</option><option>สนับสนุนอุปกรณ์</option>
 </select></label>
-
-<div id="targetWrap" class="hidden">
-<label class="block"><span class="font-semibold">เป้าหมาย (ดอก) *</span>
-<input id="target" type="number" min="1" class="mt-1 w-full border rounded-lg p-3">
-</label></div>
-
-<div id="equipmentWrap" class="hidden">
-<label class="block"><span class="font-semibold">อุปกรณ์ที่สนับสนุน *</span>
-<textarea id="equipment" rows="3" class="mt-1 w-full border rounded-lg p-3"></textarea>
-</label></div>
-
-<label class="block"><span class="font-semibold">วัน/เดือน/ปี ดำเนินการ *</span>
-<input id="startDate" type="date" required class="mt-1 w-full border rounded-lg p-3"></label>
-
-<label class="block"><span class="font-semibold">วันที่คาดว่าจะส่งมอบ *</span>
-<input id="deliveryDate" type="date" required class="mt-1 w-full border rounded-lg p-3"></label>
-
-<label class="block"><span class="font-semibold">ผู้ประสาน *</span>
-<input id="coordinator" required class="mt-1 w-full border rounded-lg p-3"></label>
-
-<label class="block"><span class="font-semibold">หมายเลขโทรศัพท์ *</span>
-<input id="phone" type="tel" pattern="[0-9]{9,10}" required class="mt-1 w-full border rounded-lg p-3"></label>
-
-<button id="submitBtn" type="submit" class="w-full bg-neutral-900 text-white rounded-lg p-3 font-bold hover:bg-neutral-700">
-บันทึกข้อมูล
-</button>
+<div id="targetWrap" class="hidden"><label class="block"><span class="font-semibold">เป้าหมาย (ดอก) *</span><input id="target" type="number" min="1" class="mt-1 w-full border rounded-lg p-3"></label></div>
+<div id="equipmentWrap" class="hidden"><label class="block"><span class="font-semibold">อุปกรณ์ที่สนับสนุน *</span><textarea id="equipment" rows="3" class="mt-1 w-full border rounded-lg p-3"></textarea></label></div>
+<label class="block"><span class="font-semibold">วัน/เดือน/ปี ดำเนินการ *</span><input id="startDate" type="date" required class="mt-1 w-full border rounded-lg p-3"></label>
+<label class="block"><span class="font-semibold">วันที่คาดว่าจะส่งมอบ *</span><input id="deliveryDate" type="date" required class="mt-1 w-full border rounded-lg p-3"></label>
+<label class="block"><span class="font-semibold">ผู้ประสาน *</span><input id="coordinator" required class="mt-1 w-full border rounded-lg p-3"></label>
+<label class="block"><span class="font-semibold">หมายเลขโทรศัพท์ *</span><input id="phone" type="tel" pattern="[0-9]{9,10}" required class="mt-1 w-full border rounded-lg p-3"></label>
+<button id="submitBtn" type="submit" class="w-full bg-neutral-900 text-white rounded-lg p-3 font-bold hover:bg-neutral-700">บันทึกข้อมูล</button>
 <div id="status" class="text-center text-sm" aria-live="polite"></div>
 </form>
 </main>
 
-<iframe id="saveFrame" name="saveFrame" style="display:none"></iframe>
-
 <script>
-const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxtVdDV6VIDv-6GE91Fb0t9q8lakEURGThhPQq9zqEw9Gky80uERioqcY9V5dEi5lXb/exec';
+const APPS_SCRIPT_URL='https://script.google.com/macros/s/AKfycbxtVdDV6VIDv-6GE91Fb0t9q8lakEURGThhPQq9zqEw9Gky80uERioqcY9V5dEi5lXb/exec';
 
 function toggleFields(){
-  const t=document.getElementById('supportType').value;
-  document.getElementById('targetWrap').classList.toggle('hidden',t!=='สนับสนุนดอกไม้จันทน์');
-  document.getElementById('equipmentWrap').classList.toggle('hidden',t!=='สนับสนุนอุปกรณ์');
-  document.getElementById('target').required=t==='สนับสนุนดอกไม้จันทน์';
-  document.getElementById('equipment').required=t==='สนับสนุนอุปกรณ์';
+ const t=document.getElementById('supportType').value;
+ document.getElementById('targetWrap').classList.toggle('hidden',t!=='สนับสนุนดอกไม้จันทน์');
+ document.getElementById('equipmentWrap').classList.toggle('hidden',t!=='สนับสนุนอุปกรณ์');
+ document.getElementById('target').required=t==='สนับสนุนดอกไม้จันทน์';
+ document.getElementById('equipment').required=t==='สนับสนุนอุปกรณ์';
 }
 
 document.getElementById('supportForm').addEventListener('submit',function(e){
-  e.preventDefault();
+ e.preventDefault();
 
-  const form=e.target;
-  const status=document.getElementById('status');
-  const btn=document.getElementById('submitBtn');
-  const type=document.getElementById('supportType').value;
+ const form=e.target;
+ const status=document.getElementById('status');
+ const btn=document.getElementById('submitBtn');
+ const type=document.getElementById('supportType').value;
 
-  const data={
-    agency:document.getElementById('agency').value.trim(),
-    supportType:type,
-    target:type==='สนับสนุนดอกไม้จันทน์'?document.getElementById('target').value:'-',
-    equipment:type==='สนับสนุนอุปกรณ์'?document.getElementById('equipment').value.trim():'-',
-    startDate:document.getElementById('startDate').value,
-    deliveryDate:document.getElementById('deliveryDate').value,
-    coordinator:document.getElementById('coordinator').value.trim(),
-    phone:document.getElementById('phone').value.trim()
-  };
+ const data={
+  agency:document.getElementById('agency').value.trim(),
+  supportType:type,
+  target:type==='สนับสนุนดอกไม้จันทน์'?document.getElementById('target').value:'-',
+  equipment:type==='สนับสนุนอุปกรณ์'?document.getElementById('equipment').value.trim():'-',
+  startDate:document.getElementById('startDate').value,
+  deliveryDate:document.getElementById('deliveryDate').value,
+  coordinator:document.getElementById('coordinator').value.trim(),
+  phone:document.getElementById('phone').value.trim()
+ };
 
-  btn.disabled=true;
-  status.textContent='กำลังบันทึกลง Google Sheet...';
-  status.className='text-center text-sm text-gray-600';
+ btn.disabled=true;
+ status.textContent='กำลังบันทึกลง Google Sheet...';
+ status.className='text-center text-sm text-gray-600';
 
-  // ใช้ GET + hidden iframe โดยตรง
-  // ไม่ใช้ fetch / no-cors / JSON POST
-  const params=new URLSearchParams({
-    action:'save',
-    agency:data.agency,
-    supportType:data.supportType,
-    target:data.target,
-    equipment:data.equipment,
-    startDate:data.startDate,
-    deliveryDate:data.deliveryDate,
-    coordinator:data.coordinator,
-    phone:data.phone
-  });
+ const callback='sheetSave_'+Date.now();
+ const params=new URLSearchParams({
+  action:'save',
+  callback:callback,
+  agency:data.agency,
+  supportType:data.supportType,
+  target:data.target,
+  equipment:data.equipment,
+  startDate:data.startDate,
+  deliveryDate:data.deliveryDate,
+  coordinator:data.coordinator,
+  phone:data.phone
+ });
 
-  const frame=document.getElementById('saveFrame');
-  let done=false;
+ let finished=false;
+ const script=document.createElement('script');
 
-  const success=function(){
-    if(done)return;
-    done=true;
-    clearTimeout(timer);
-    frame.removeEventListener('load',success);
+ window[callback]=function(result){
+  if(finished)return;
+  finished=true;
+  clearTimeout(timer);
+  delete window[callback];
+  script.remove();
 
-    status.textContent='บันทึกข้อมูลลง Google Sheet แล้ว ✓';
-    status.className='text-center text-sm text-green-600 font-semibold';
-    form.reset();
-    toggleFields();
-    btn.disabled=false;
-  };
+  if(result && result.ok && result.saved){
+   status.textContent='บันทึกลง Google Sheet สำเร็จ ✓ รายการที่ '+result.no;
+   status.className='text-center text-sm text-green-600 font-semibold';
+   form.reset();
+   toggleFields();
+  }else{
+   status.textContent='บันทึกไม่สำเร็จ: '+((result&&result.error)||'ไม่ทราบสาเหตุ');
+   status.className='text-center text-sm text-red-600 font-semibold';
+  }
 
-  const timer=setTimeout(function(){
-    if(done)return;
-    done=true;
-    frame.removeEventListener('load',success);
-    status.textContent='ยังไม่ได้รับการยืนยันจาก Google Apps Script — ตรวจสอบการ Deploy เวอร์ชันล่าสุด';
-    status.className='text-center text-sm text-red-600 font-semibold';
-    btn.disabled=false;
-  },15000);
+  btn.disabled=false;
+ };
 
-  frame.addEventListener('load',success,{once:true});
-  frame.src=APPS_SCRIPT_URL+'?'+params.toString();
+ const timer=setTimeout(function(){
+  if(finished)return;
+  finished=true;
+  delete window[callback];
+  script.remove();
+  status.textContent='หมดเวลารอ Google Apps Script — กรุณาตรวจสอบการ Deploy เวอร์ชันล่าสุด';
+  status.className='text-center text-sm text-red-600 font-semibold';
+  btn.disabled=false;
+ },15000);
+
+ script.onerror=function(){
+  if(finished)return;
+  finished=true;
+  clearTimeout(timer);
+  delete window[callback];
+  script.remove();
+  status.textContent='เชื่อมต่อ Google Apps Script ไม่สำเร็จ';
+  status.className='text-center text-sm text-red-600 font-semibold';
+  btn.disabled=false;
+ };
+
+ script.src=APPS_SCRIPT_URL+'?'+params.toString();
+ document.body.appendChild(script);
 });
 
 toggleFields();
