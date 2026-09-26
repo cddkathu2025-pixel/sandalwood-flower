@@ -34,6 +34,9 @@
 </form>
 </main>
 
+<!-- รับผลจาก Google Apps Script โดยไม่ใช้ JSONP/CORS -->
+<iframe name="saveFrame" id="saveFrame" title="saveFrame" style="display:none"></iframe>
+
 <script>
 const APPS_SCRIPT_URL='https://script.google.com/macros/s/AKfycbxTGhoLolZRXfDaANJcQyD2ZuR6fUSw_NP5gUCDNRsMzMflsuasruFOt79BbUozxGBN/exec';
 
@@ -44,6 +47,27 @@ function toggleFields(){
  document.getElementById('target').required=t==='สนับสนุนดอกไม้จันทน์';
  document.getElementById('equipment').required=t==='สนับสนุนอุปกรณ์';
 }
+
+window.addEventListener('message',function(event){
+ const msg=event.data;
+ if(!msg || msg.type!=='sheetSaveResult') return;
+
+ const result=msg.result||{};
+ const status=document.getElementById('status');
+ const form=document.getElementById('supportForm');
+ const btn=document.getElementById('submitBtn');
+
+ if(result.ok && result.saved){
+   status.textContent='บันทึกลง Google Sheet สำเร็จ ✓ รายการที่ '+result.no;
+   status.className='text-center text-sm text-green-600 font-semibold';
+   form.reset();
+   toggleFields();
+ }else{
+   status.textContent='บันทึกไม่สำเร็จ: '+(result.error||'ไม่ทราบสาเหตุ');
+   status.className='text-center text-sm text-red-600 font-semibold';
+ }
+ btn.disabled=false;
+});
 
 document.getElementById('supportForm').addEventListener('submit',function(e){
  e.preventDefault();
@@ -68,66 +92,31 @@ document.getElementById('supportForm').addEventListener('submit',function(e){
  status.textContent='กำลังบันทึกลง Google Sheet...';
  status.className='text-center text-sm text-gray-600';
 
- const callback='sheetSave_'+Date.now();
- const params=new URLSearchParams({
-  action:'save',
-  callback:callback,
-  agency:data.agency,
-  supportType:data.supportType,
-  target:data.target,
-  equipment:data.equipment,
-  startDate:data.startDate,
-  deliveryDate:data.deliveryDate,
-  coordinator:data.coordinator,
-  phone:data.phone
+ const postForm=document.createElement('form');
+ postForm.method='POST';
+ postForm.action=APPS_SCRIPT_URL;
+ postForm.target='saveFrame';
+ postForm.style.display='none';
+
+ Object.keys(data).forEach(function(key){
+   const input=document.createElement('input');
+   input.type='hidden';
+   input.name=key;
+   input.value=data[key];
+   postForm.appendChild(input);
  });
 
- let finished=false;
- const script=document.createElement('script');
+ document.body.appendChild(postForm);
+ postForm.submit();
+ setTimeout(function(){ postForm.remove(); },3000);
 
- window[callback]=function(result){
-  if(finished)return;
-  finished=true;
-  clearTimeout(timer);
-  delete window[callback];
-  script.remove();
-
-  if(result && result.ok && result.saved){
-   status.textContent='บันทึกลง Google Sheet สำเร็จ ✓ รายการที่ '+result.no;
-   status.className='text-center text-sm text-green-600 font-semibold';
-   form.reset();
-   toggleFields();
-  }else{
-   status.textContent='บันทึกไม่สำเร็จ: '+((result&&result.error)||'ไม่ทราบสาเหตุ');
-   status.className='text-center text-sm text-red-600 font-semibold';
-  }
-
-  btn.disabled=false;
- };
-
- const timer=setTimeout(function(){
-  if(finished)return;
-  finished=true;
-  delete window[callback];
-  script.remove();
-  status.textContent='หมดเวลารอ Google Apps Script — กรุณาตรวจสอบการ Deploy เวอร์ชันล่าสุด';
-  status.className='text-center text-sm text-red-600 font-semibold';
-  btn.disabled=false;
+ setTimeout(function(){
+   if(btn.disabled){
+     status.textContent='ยังไม่ได้รับผลตอบกลับจาก Google Apps Script — กรุณาตรวจสอบการ Deploy เวอร์ชันล่าสุด';
+     status.className='text-center text-sm text-red-600 font-semibold';
+     btn.disabled=false;
+   }
  },15000);
-
- script.onerror=function(){
-  if(finished)return;
-  finished=true;
-  clearTimeout(timer);
-  delete window[callback];
-  script.remove();
-  status.textContent='เชื่อมต่อ Google Apps Script ไม่สำเร็จ';
-  status.className='text-center text-sm text-red-600 font-semibold';
-  btn.disabled=false;
- };
-
- script.src=APPS_SCRIPT_URL+'?'+params.toString();
- document.body.appendChild(script);
 });
 
 toggleFields();
