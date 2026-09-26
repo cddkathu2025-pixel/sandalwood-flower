@@ -16,7 +16,19 @@
 <p class="text-sm mt-2">ติดต่อประสานงาน สำนักงานพัฒนาชุมชนอำเภอกะทู้ โทร.0940724909</p>
 </header>
 
+<!-- ระบบใหม่: เชื่อม Google Sheets API โดยตรง ไม่ผ่าน Google Apps Script -->
 <main class="max-w-2xl mx-auto p-4">
+<div class="bg-white rounded-2xl shadow p-5 mb-4">
+  <div class="flex flex-col sm:flex-row gap-3 items-stretch sm:items-center justify-between">
+    <div>
+      <div class="font-bold">การเชื่อมต่อ Google Sheets</div>
+      <div id="authStatus" class="text-sm text-gray-500">ยังไม่ได้เข้าสู่ระบบ Google</div>
+    </div>
+    <button id="authBtn" type="button" class="bg-blue-600 text-white rounded-lg px-5 py-3 font-bold hover:bg-blue-700">เข้าสู่ระบบ Google</button>
+  </div>
+  <div id="setupNotice" class="hidden mt-4 rounded-lg bg-amber-50 border border-amber-200 p-3 text-sm text-amber-800"></div>
+</div>
+
 <form id="supportForm" class="bg-white rounded-2xl shadow p-6 space-y-4">
 <label class="block"><span class="font-semibold">หน่วยงาน *</span><input id="agency" required class="mt-1 w-full border rounded-lg p-3"></label>
 <label class="block"><span class="font-semibold">ประเภทการสนับสนุน *</span>
@@ -29,14 +41,30 @@
 <label class="block"><span class="font-semibold">วันที่คาดว่าจะส่งมอบ *</span><input id="deliveryDate" type="date" required class="mt-1 w-full border rounded-lg p-3"></label>
 <label class="block"><span class="font-semibold">ผู้ประสาน *</span><input id="coordinator" required class="mt-1 w-full border rounded-lg p-3"></label>
 <label class="block"><span class="font-semibold">หมายเลขโทรศัพท์ *</span><input id="phone" type="tel" pattern="[0-9]{9,10}" required class="mt-1 w-full border rounded-lg p-3"></label>
-<button id="submitBtn" type="submit" class="w-full bg-neutral-900 text-white rounded-lg p-3 font-bold hover:bg-neutral-700">บันทึกข้อมูล</button>
+<button id="submitBtn" type="submit" class="w-full bg-neutral-900 text-white rounded-lg p-3 font-bold hover:bg-neutral-700 disabled:opacity-50">บันทึกข้อมูลลง Google Sheet</button>
 <div id="status" class="text-center text-sm" aria-live="polite"></div>
 </form>
+
+<div class="bg-white rounded-2xl shadow p-5 mt-4 text-sm text-gray-600">
+  <b>ระบบเชื่อมต่อโดยตรง</b><br>
+  หน้าเว็บนี้ใช้ Google Sheets API + Google OAuth โดยตรง ไม่มี Google Apps Script และไม่มี URL /exec ในขั้นตอนบันทึกข้อมูล
+</div>
 </main>
 
-<!-- ส่งข้อมูลผ่าน JSONP เพื่อรองรับ Apps Script Web App ที่ตอบ GET -->
+<script src="https://accounts.google.com/gsi/client"></script>
 <script>
-const APPS_SCRIPT_URL='https://script.google.com/macros/s/AKfycbxtVdDV6VIDv-6GE91Fb0t9q8lakEURGThhPQq9zqEw9Gky80uERioqcY9V5dEi5lXb/exec';
+// ============================================================
+// CONFIG — Google Sheets API โดยตรง
+// ============================================================
+const SPREADSHEET_ID='1kO0kBEW4Yy6J2Qb3spXP4pF_QupRrMIsYShGLmpdHts';
+const SHEET_NAME='Sandalwood_Web';
+const SHEETS_SCOPE='https://www.googleapis.com/auth/spreadsheets';
+// ใส่ OAuth 2.0 Web Client ID ของ Google Cloud ที่นี่
+const GOOGLE_CLIENT_ID='PUT_YOUR_GOOGLE_OAUTH_WEB_CLIENT_ID_HERE.apps.googleusercontent.com';
+
+let accessToken='';
+let tokenClient=null;
+let tokenTimer=null;
 
 function toggleFields(){
  const t=document.getElementById('supportType').value;
@@ -46,84 +74,132 @@ function toggleFields(){
  document.getElementById('equipment').required=t==='สนับสนุนอุปกรณ์';
 }
 
-function showResult(result){
- const status=document.getElementById('status');
- const form=document.getElementById('supportForm');
- const btn=document.getElementById('submitBtn');
- if(result && result.ok && result.saved){
-   status.textContent='บันทึกลง Google Sheet สำเร็จ ✓ รายการที่ '+result.no;
-   status.className='text-center text-sm text-green-600 font-semibold';
-   form.reset();
-   toggleFields();
- }else{
-   status.textContent='บันทึกไม่สำเร็จ: '+((result&&result.error)||'ไม่ทราบสาเหตุ');
-   status.className='text-center text-sm text-red-600 font-semibold';
- }
- btn.disabled=false;
+function setStatus(text,type){
+ const el=document.getElementById('status');
+ el.textContent=text;
+ el.className='text-center text-sm font-semibold '+(
+   type==='ok'?'text-green-600':type==='error'?'text-red-600':'text-gray-600'
+ );
 }
 
-document.getElementById('supportForm').addEventListener('submit',function(e){
- e.preventDefault();
- const status=document.getElementById('status');
- const btn=document.getElementById('submitBtn');
- const type=document.getElementById('supportType').value;
- const data={
-  agency:document.getElementById('agency').value.trim(),
-  supportType:type,
-  target:type==='สนับสนุนดอกไม้จันทน์'?document.getElementById('target').value:'-',
-  equipment:type==='สนับสนุนอุปกรณ์'?document.getElementById('equipment').value.trim():'-',
-  startDate:document.getElementById('startDate').value,
-  deliveryDate:document.getElementById('deliveryDate').value,
-  coordinator:document.getElementById('coordinator').value.trim(),
-  phone:document.getElementById('phone').value.trim()
- };
+function setupMessage(){
+ const box=document.getElementById('setupNotice');
+ if(!GOOGLE_CLIENT_ID || GOOGLE_CLIENT_ID.startsWith('PUT_YOUR_')){
+   box.classList.remove('hidden');
+   box.innerHTML='<b>ต้องตั้งค่า Google OAuth Client ID ก่อนใช้งาน</b><br>ระบบถูกเปลี่ยนเป็นการเชื่อม Google Sheets โดยตรงแล้ว แต่ต้องใส่ OAuth Web Client ID ในตัวแปร <code>GOOGLE_CLIENT_ID</code> ของไฟล์นี้ก่อน';
+ }
+}
 
- btn.disabled=true;
- status.textContent='กำลังบันทึกลง Google Sheet...';
- status.className='text-center text-sm text-gray-600';
+function initGoogleAuth(){
+ if(!window.google || !google.accounts || !google.accounts.oauth2) return;
+ if(!GOOGLE_CLIENT_ID || GOOGLE_CLIENT_ID.startsWith('PUT_YOUR_')) return;
+ tokenClient=google.accounts.oauth2.initTokenClient({
+   client_id:GOOGLE_CLIENT_ID,
+   scope:SHEETS_SCOPE,
+   callback:function(resp){
+     if(resp.error){
+       accessToken='';
+       document.getElementById('authStatus').textContent='เข้าสู่ระบบไม่สำเร็จ: '+resp.error;
+       document.getElementById('authStatus').className='text-sm text-red-600';
+       return;
+     }
+     accessToken=resp.access_token;
+     document.getElementById('authStatus').textContent='เชื่อมต่อ Google Sheets แล้ว ✓';
+     document.getElementById('authStatus').className='text-sm text-green-600 font-semibold';
+     document.getElementById('authBtn').textContent='เชื่อมต่อแล้ว ✓';
+     document.getElementById('authBtn').className='bg-green-600 text-white rounded-lg px-5 py-3 font-bold';
+     setStatus('พร้อมบันทึกลง Google Sheet โดยตรง','ok');
+     if(tokenTimer) clearTimeout(tokenTimer);
+     tokenTimer=setTimeout(function(){ accessToken=''; document.getElementById('authStatus').textContent='เซสชันหมดอายุ กรุณาเข้าสู่ระบบอีกครั้ง'; document.getElementById('authBtn').textContent='เข้าสู่ระบบ Google'; },3300000);
+   }
+ });
+}
 
- const callback='sheetSaveCallback_'+Date.now();
- let finished=false;
- window[callback]=function(result){
-   if(finished) return;
-   finished=true;
-   clearTimeout(timer);
-   showResult(result);
-   if(script.parentNode) script.parentNode.removeChild(script);
-   try{ delete window[callback]; }catch(e){ window[callback]=undefined; }
- };
-
- const params=new URLSearchParams();
- params.set('action','save');
- params.set('callback',callback);
- Object.keys(data).forEach(function(key){params.set(key,data[key]);});
-
- const script=document.createElement('script');
- script.src=APPS_SCRIPT_URL+'?'+params.toString();
- script.onerror=function(){
-   if(finished) return;
-   finished=true;
-   clearTimeout(timer);
-   status.textContent='เชื่อมต่อ Google Apps Script ไม่สำเร็จ';
-   status.className='text-center text-sm text-red-600 font-semibold';
-   btn.disabled=false;
-   try{ delete window[callback]; }catch(e){ window[callback]=undefined; }
-   if(script.parentNode) script.parentNode.removeChild(script);
- };
- document.body.appendChild(script);
-
- const timer=setTimeout(function(){
-   if(finished) return;
-   finished=true;
-   status.textContent='หมดเวลารอการตอบกลับจาก Google Apps Script — ตรวจสอบการ Deploy และสิทธิ์ Anyone';
-   status.className='text-center text-sm text-red-600 font-semibold';
-   btn.disabled=false;
-   try{ delete window[callback]; }catch(e){ window[callback]=undefined; }
-   if(script.parentNode) script.parentNode.removeChild(script);
- },15000);
+document.getElementById('authBtn').addEventListener('click',function(){
+ if(!tokenClient){
+   setupMessage();
+   return;
+ }
+ tokenClient.requestAccessToken({prompt:accessToken?'':'consent'});
 });
 
+async function apiFetch(url,options={}){
+ const headers=Object.assign({},options.headers||{}, {'Authorization':'Bearer '+accessToken});
+ const response=await fetch(url,Object.assign({},options,{headers}));
+ const text=await response.text();
+ let data={};
+ try{data=JSON.parse(text);}catch(e){data={error:{message:text||('HTTP '+response.status)}};}
+ if(!response.ok) throw new Error((data.error&&data.error.message)||('HTTP '+response.status));
+ return data;
+}
+
+async function getNextNumber(){
+ const range=encodeURIComponent(SHEET_NAME+'!A2:A');
+ const url='https://sheets.googleapis.com/v4/spreadsheets/'+encodeURIComponent(SPREADSHEET_ID)+'/values/'+range;
+ const data=await apiFetch(url);
+ const values=data.values||[];
+ let max=0;
+ values.forEach(function(row){
+   const n=Number(row[0]);
+   if(Number.isFinite(n) && n>max) max=n;
+ });
+ return max+1;
+}
+
+async function appendRow(data){
+ const no=await getNextNumber();
+ const range=encodeURIComponent(SHEET_NAME+'!A:J');
+ const url='https://sheets.googleapis.com/v4/spreadsheets/'+encodeURIComponent(SPREADSHEET_ID)+'/values/'+range+':append?valueInputOption=USER_ENTERED&insertDataOption=INSERT_ROWS';
+ const row=[[no,data.agency,data.supportType,data.target,data.equipment,data.startDate,data.deliveryDate,data.coordinator,data.phone,new Date().toLocaleString('th-TH')]];
+ const result=await apiFetch(url,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({values:row})});
+ return {no:no,result:result};
+}
+
+document.getElementById('supportForm').addEventListener('submit',async function(e){
+ e.preventDefault();
+ const btn=document.getElementById('submitBtn');
+ if(!accessToken){
+   setStatus('กรุณากด “เข้าสู่ระบบ Google” ก่อนบันทึกข้อมูล','error');
+   return;
+ }
+ const type=document.getElementById('supportType').value;
+ const data={
+   agency:document.getElementById('agency').value.trim(),
+   supportType:type,
+   target:type==='สนับสนุนดอกไม้จันทน์'?document.getElementById('target').value:'-',
+   equipment:type==='สนับสนุนอุปกรณ์'?document.getElementById('equipment').value.trim():'-',
+   startDate:document.getElementById('startDate').value,
+   deliveryDate:document.getElementById('deliveryDate').value,
+   coordinator:document.getElementById('coordinator').value.trim(),
+   phone:document.getElementById('phone').value.trim()
+ };
+ if(!data.agency || !data.supportType || !data.startDate || !data.deliveryDate || !data.coordinator || !/^[0-9]{9,10}$/.test(data.phone)){
+   setStatus('กรุณาตรวจสอบข้อมูลที่จำเป็นและหมายเลขโทรศัพท์','error');
+   return;
+ }
+ if(type==='สนับสนุนดอกไม้จันทน์' && Number(data.target)<1){setStatus('กรุณาระบุเป้าหมายดอกไม้จันทน์','error');return;}
+ if(type==='สนับสนุนอุปกรณ์' && (!data.equipment || data.equipment==='-')){setStatus('กรุณาระบุอุปกรณ์ที่สนับสนุน','error');return;}
+ btn.disabled=true;
+ setStatus('กำลังบันทึกลง Google Sheet โดยตรง...','wait');
+ try{
+   const saved=await appendRow(data);
+   setStatus('บันทึกลง Google Sheet สำเร็จ ✓ รายการที่ '+saved.no,'ok');
+   this.reset();
+   toggleFields();
+ }catch(err){
+   if(String(err.message).toLowerCase().includes('401') || String(err.message).toLowerCase().includes('unauthenticated')){
+     accessToken='';
+     document.getElementById('authStatus').textContent='การอนุญาตหมดอายุ กรุณาเข้าสู่ระบบใหม่';
+   }
+   setStatus('บันทึกไม่สำเร็จ: '+err.message,'error');
+ }finally{
+   btn.disabled=false;
+ }
+});
+
+setupMessage();
 toggleFields();
+window.addEventListener('load',initGoogleAuth);
 </script>
 </body>
 </html>
