@@ -34,9 +34,7 @@
 </form>
 </main>
 
-<!-- รับผลจาก Google Apps Script โดยไม่ใช้ JSONP/CORS -->
-<iframe name="saveFrame" id="saveFrame" title="saveFrame" style="display:none"></iframe>
-
+<!-- ส่งข้อมูลผ่าน JSONP เพื่อรองรับ Apps Script Web App ที่ตอบ GET -->
 <script>
 const APPS_SCRIPT_URL='https://script.google.com/macros/s/AKfycbxtVdDV6VIDv-6GE91Fb0t9q8lakEURGThhPQq9zqEw9Gky80uERioqcY9V5dEi5lXb/exec';
 
@@ -48,35 +46,27 @@ function toggleFields(){
  document.getElementById('equipment').required=t==='สนับสนุนอุปกรณ์';
 }
 
-window.addEventListener('message',function(event){
- const msg=event.data;
- if(!msg || msg.type!=='sheetSaveResult') return;
-
- const result=msg.result||{};
+function showResult(result){
  const status=document.getElementById('status');
  const form=document.getElementById('supportForm');
  const btn=document.getElementById('submitBtn');
-
- if(result.ok && result.saved){
+ if(result && result.ok && result.saved){
    status.textContent='บันทึกลง Google Sheet สำเร็จ ✓ รายการที่ '+result.no;
    status.className='text-center text-sm text-green-600 font-semibold';
    form.reset();
    toggleFields();
  }else{
-   status.textContent='บันทึกไม่สำเร็จ: '+(result.error||'ไม่ทราบสาเหตุ');
+   status.textContent='บันทึกไม่สำเร็จ: '+((result&&result.error)||'ไม่ทราบสาเหตุ');
    status.className='text-center text-sm text-red-600 font-semibold';
  }
  btn.disabled=false;
-});
+}
 
 document.getElementById('supportForm').addEventListener('submit',function(e){
  e.preventDefault();
-
- const form=e.target;
  const status=document.getElementById('status');
  const btn=document.getElementById('submitBtn');
  const type=document.getElementById('supportType').value;
-
  const data={
   agency:document.getElementById('agency').value.trim(),
   supportType:type,
@@ -92,30 +82,44 @@ document.getElementById('supportForm').addEventListener('submit',function(e){
  status.textContent='กำลังบันทึกลง Google Sheet...';
  status.className='text-center text-sm text-gray-600';
 
- const postForm=document.createElement('form');
- postForm.method='POST';
- postForm.action=APPS_SCRIPT_URL;
- postForm.target='saveFrame';
- postForm.style.display='none';
+ const callback='sheetSaveCallback_'+Date.now();
+ let finished=false;
+ window[callback]=function(result){
+   if(finished) return;
+   finished=true;
+   clearTimeout(timer);
+   showResult(result);
+   if(script.parentNode) script.parentNode.removeChild(script);
+   try{ delete window[callback]; }catch(e){ window[callback]=undefined; }
+ };
 
- Object.keys(data).forEach(function(key){
-   const input=document.createElement('input');
-   input.type='hidden';
-   input.name=key;
-   input.value=data[key];
-   postForm.appendChild(input);
- });
+ const params=new URLSearchParams();
+ params.set('action','save');
+ params.set('callback',callback);
+ Object.keys(data).forEach(function(key){params.set(key,data[key]);});
 
- document.body.appendChild(postForm);
- postForm.submit();
- setTimeout(function(){ postForm.remove(); },3000);
+ const script=document.createElement('script');
+ script.src=APPS_SCRIPT_URL+'?'+params.toString();
+ script.onerror=function(){
+   if(finished) return;
+   finished=true;
+   clearTimeout(timer);
+   status.textContent='เชื่อมต่อ Google Apps Script ไม่สำเร็จ';
+   status.className='text-center text-sm text-red-600 font-semibold';
+   btn.disabled=false;
+   try{ delete window[callback]; }catch(e){ window[callback]=undefined; }
+   if(script.parentNode) script.parentNode.removeChild(script);
+ };
+ document.body.appendChild(script);
 
- setTimeout(function(){
-   if(btn.disabled){
-     status.textContent='ยังไม่ได้รับผลตอบกลับจาก Google Apps Script — กรุณาตรวจสอบการ Deploy เวอร์ชันล่าสุด';
-     status.className='text-center text-sm text-red-600 font-semibold';
-     btn.disabled=false;
-   }
+ const timer=setTimeout(function(){
+   if(finished) return;
+   finished=true;
+   status.textContent='หมดเวลารอการตอบกลับจาก Google Apps Script — ตรวจสอบการ Deploy และสิทธิ์ Anyone';
+   status.className='text-center text-sm text-red-600 font-semibold';
+   btn.disabled=false;
+   try{ delete window[callback]; }catch(e){ window[callback]=undefined; }
+   if(script.parentNode) script.parentNode.removeChild(script);
  },15000);
 });
 
