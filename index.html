@@ -3,6 +3,9 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="Expires" content="0">
 <title>ระบบบันทึกข้อมูลสนับสนุนการจัดทำดอกไม้จันทน์</title>
 <script src="https://cdn.tailwindcss.com"></script>
 <style>body{font-family:Arial,'Noto Sans Thai',sans-serif}</style>
@@ -41,7 +44,7 @@
 
 <div class="bg-white rounded-2xl shadow p-5 mt-4 text-sm text-gray-600">
   <b>ระบบใหม่</b><br>
-  GitHub Pages → Supabase Database โดยตรง ไม่มี Google Apps Script, Google OAuth หรือ Google Sheet
+  GitHub Pages → Supabase Database โดยตรง ไม่มี Google Apps Script, Google OAuth หรือ Google Sheet<br><span class="text-xs text-gray-400">ระบบเวอร์ชัน ${APP_VERSION}</span>
 </div>
 </main>
 
@@ -49,6 +52,7 @@
 const SUPABASE_URL='https://sfsuobcweyrzknnsdzrb.supabase.co';
 const SUPABASE_KEY='sb_publishable_4szPnLRNLUfK-hLiLltxlA_fg8M9TGY';
 const TABLE='sandalwood_web';
+const APP_VERSION='2026.09.26.2';
 
 function toggleFields(){
  const t=document.getElementById('supportType').value;
@@ -67,7 +71,6 @@ async function saveToSupabase(data){
    method:'POST',
    headers:{
      'apikey':SUPABASE_KEY,
-     'Authorization':'Bearer '+SUPABASE_KEY,
      'Content-Type':'application/json',
      'Prefer':'return=minimal'
    },
