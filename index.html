@@ -19,14 +19,8 @@
 <!-- ระบบใหม่: เชื่อม Google Sheets API โดยตรง ไม่ผ่าน Google Apps Script -->
 <main class="max-w-2xl mx-auto p-4">
 <div class="bg-white rounded-2xl shadow p-5 mb-4">
-  <div class="flex flex-col sm:flex-row gap-3 items-stretch sm:items-center justify-between">
-    <div>
-      <div class="font-bold">การเชื่อมต่อ Google Sheets</div>
-      <div id="authStatus" class="text-sm text-gray-500">ยังไม่ได้เข้าสู่ระบบ Google</div>
-    </div>
-    <button id="authBtn" type="button" class="bg-blue-600 text-white rounded-lg px-5 py-3 font-bold hover:bg-blue-700">เข้าสู่ระบบ Google</button>
-  </div>
-  <div id="setupNotice" class="hidden mt-4 rounded-lg bg-amber-50 border border-amber-200 p-3 text-sm text-amber-800"></div>
+  <div class="font-bold text-green-700">เชื่อมต่อฐานข้อมูลแล้ว</div>
+  <div class="text-sm text-gray-500 mt-1">ข้อมูลจะถูกบันทึกลงระบบโดยตรง และผู้กรอกไม่ต้องเข้าสู่ระบบ Google</div>
 </div>
 
 <form id="supportForm" class="bg-white rounded-2xl shadow p-6 space-y-4">
@@ -40,18 +34,89 @@
 <label class="block"><span class="font-semibold">วัน/เดือน/ปี ดำเนินการ *</span><input id="startDate" type="date" required class="mt-1 w-full border rounded-lg p-3"></label>
 <label class="block"><span class="font-semibold">วันที่คาดว่าจะส่งมอบ *</span><input id="deliveryDate" type="date" required class="mt-1 w-full border rounded-lg p-3"></label>
 <label class="block"><span class="font-semibold">ผู้ประสาน *</span><input id="coordinator" required class="mt-1 w-full border rounded-lg p-3"></label>
-<label class="block"><span class="font-semibold">หมายเลขโทรศัพท์ *</span><input id="phone" type="tel" pattern="[0-9]{9,10}" required class="mt-1 w-full border rounded-lg p-3"></label>
-<button id="submitBtn" type="submit" class="w-full bg-neutral-900 text-white rounded-lg p-3 font-bold hover:bg-neutral-700 disabled:opacity-50">บันทึกข้อมูลลง Google Sheet</button>
+<label class="block"><span class="font-semibold">หมายเลขโทรศัพท์ *</span><input id="phone" type="tel" inputmode="numeric" pattern="[0-9]{9,10}" required class="mt-1 w-full border rounded-lg p-3"></label>
+<button id="submitBtn" type="submit" class="w-full bg-neutral-900 text-white rounded-lg p-3 font-bold hover:bg-neutral-700 disabled:opacity-50">บันทึกข้อมูล</button>
 <div id="status" class="text-center text-sm" aria-live="polite"></div>
 </form>
 
 <div class="bg-white rounded-2xl shadow p-5 mt-4 text-sm text-gray-600">
-  <b>ระบบเชื่อมต่อโดยตรง</b><br>
-  หน้าเว็บนี้ใช้ Google Sheets API + Google OAuth โดยตรง ไม่มี Google Apps Script และไม่มี URL /exec ในขั้นตอนบันทึกข้อมูล
+  <b>ระบบใหม่</b><br>
+  GitHub Pages → Supabase Database โดยตรง ไม่มี Google Apps Script, Google OAuth หรือ Google Sheet
 </div>
 </main>
 
-<script src="https://accounts.google.com/gsi/client"></script>
+<script>
+const SUPABASE_URL='https://sfsuobcweyrzknnsdzrb.supabase.co';
+const SUPABASE_KEY='sb_publishable_4szPnLRNLUfK-hLiLltxlA_fg8M9TGY';
+const TABLE='sandalwood_web';
+
+function toggleFields(){
+ const t=document.getElementById('supportType').value;
+ document.getElementById('targetWrap').classList.toggle('hidden',t!=='สนับสนุนดอกไม้จันทน์');
+ document.getElementById('equipmentWrap').classList.toggle('hidden',t!=='สนับสนุนอุปกรณ์');
+ document.getElementById('target').required=t==='สนับสนุนดอกไม้จันทน์';
+ document.getElementById('equipment').required=t==='สนับสนุนอุปกรณ์';
+}
+function setStatus(text,type){
+ const el=document.getElementById('status');
+ el.textContent=text;
+ el.className='text-center text-sm font-semibold '+(type==='ok'?'text-green-600':type==='error'?'text-red-600':'text-gray-600');
+}
+async function saveToSupabase(data){
+ const res=await fetch(SUPABASE_URL+'/rest/v1/'+TABLE,{
+   method:'POST',
+   headers:{
+     'apikey':SUPABASE_KEY,
+     'Authorization':'Bearer '+SUPABASE_KEY,
+     'Content-Type':'application/json',
+     'Prefer':'return=representation'
+   },
+   body:JSON.stringify(data)
+ });
+ const text=await res.text();
+ let body={};
+ try{body=JSON.parse(text);}catch(e){}
+ if(!res.ok){
+   const msg=body.message||body.error_description||body.hint||body.code||text||('HTTP '+res.status);
+   throw new Error(msg);
+ }
+ return Array.isArray(body)?body[0]:body;
+}
+document.getElementById('supportForm').addEventListener('submit',async function(e){
+ e.preventDefault();
+ const btn=document.getElementById('submitBtn');
+ const type=document.getElementById('supportType').value;
+ const data={
+   agency:document.getElementById('agency').value.trim(),
+   support_type:type,
+   target:type==='สนับสนุนดอกไม้จันทน์'?Number(document.getElementById('target').value):null,
+   equipment:type==='สนับสนุนอุปกรณ์'?document.getElementById('equipment').value.trim():null,
+   start_date:document.getElementById('startDate').value,
+   delivery_date:document.getElementById('deliveryDate').value,
+   coordinator:document.getElementById('coordinator').value.trim(),
+   phone:document.getElementById('phone').value.trim()
+ };
+ if(!data.agency||!data.support_type||!data.start_date||!data.delivery_date||!data.coordinator||!/^[0-9]{9,10}$/.test(data.phone)){
+   setStatus('กรุณาตรวจสอบข้อมูลที่จำเป็นและหมายเลขโทรศัพท์','error'); return;
+ }
+ if(type==='สนับสนุนดอกไม้จันทน์' && (!data.target||data.target<1)){
+   setStatus('กรุณาระบุเป้าหมายดอกไม้จันทน์','error'); return;
+ }
+ if(type==='สนับสนุนอุปกรณ์' && !data.equipment){
+   setStatus('กรุณาระบุอุปกรณ์ที่สนับสนุน','error'); return;
+ }
+ btn.disabled=true;
+ setStatus('กำลังบันทึกข้อมูล...','wait');
+ try{
+   const saved=await saveToSupabase(data);
+   setStatus('บันทึกข้อมูลสำเร็จ ✓','ok');
+   this.reset(); toggleFields();
+ }catch(err){
+   setStatus('บันทึกไม่สำเร็จ: '+err.message,'error');
+ }finally{btn.disabled=false;}
+});
+toggleFields();
+</script>
 <script>
 // ============================================================
 // CONFIG — Google Sheets API โดยตรง
