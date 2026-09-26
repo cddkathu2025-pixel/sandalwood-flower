@@ -1,5 +1,5 @@
 // SAFE MODE: Backend แยกจาก Apps Script ระบบหลัก
-// ใช้เฉพาะกับ Web App ของโปรเจกต์นี้
+// โปรเจกต์ sandalwood-flower เท่านั้น
 const SPREADSHEET_ID = '1kO0kBEW4Yy6J2Qb3spXP4pF_QupRrMIsYShGLmpdHts';
 const TARGET_SHEET_NAME = 'Sandalwood_Web';
 
@@ -16,88 +16,31 @@ const HEADERS = [
   'วันที่บันทึก'
 ];
 
-function doGet() {
-  return json_({
-    ok: true,
-    message: 'API ทำงานแล้ว',
-    sheet: TARGET_SHEET_NAME
-  });
-}
-
-function doPost(e) {
+function doGet(e) {
   try {
-    // รองรับทั้ง JSON POST และ form POST จาก GitHub Pages
-    let raw = '';
-    if (e && e.postData && e.postData.contents) {
-      raw = e.postData.contents;
-    }
-
-    if ((!raw || raw.trim() === '') && e && e.parameter && e.parameter.payload) {
-      raw = e.parameter.payload;
-    }
-
-    if (!raw) throw new Error('ไม่พบข้อมูล POST');
-
-    const data = JSON.parse(raw);
-    validate_(data);
-
-    const ss = SpreadsheetApp.openById(SPREADSHEET_ID);
-    let sheet = ss.getSheetByName(TARGET_SHEET_NAME);
-
-    if (!sheet) {
-      sheet = ss.insertSheet(TARGET_SHEET_NAME);
-    }
-
-    // สร้างหัวตารางเฉพาะเมื่อแท็บว่าง
-    if (sheet.getLastRow() === 0) {
-      sheet.getRange(1, 1, 1, HEADERS.length).setValues([HEADERS]);
-      sheet.getRange(1, 1, 1, HEADERS.length)
-        .setBackground('#262626')
-        .setFontColor('#ffffff')
-        .setFontWeight('bold');
-      sheet.setFrozenRows(1);
-    } else if (sheet.getLastColumn() < HEADERS.length) {
-      // Migration แบบปลอดภัย: เติมเฉพาะคอลัมน์ที่ขาด ห้าม clear ข้อมูลเดิม
-      const firstMissingCol = sheet.getLastColumn() + 1;
-      const missingHeaders = HEADERS.slice(firstMissingCol - 1);
-      sheet.getRange(1, firstMissingCol, 1, missingHeaders.length)
-        .setValues([missingHeaders])
-        .setBackground('#262626')
-        .setFontColor('#ffffff')
-        .setFontWeight('bold');
-    }
-
-    const lock = LockService.getScriptLock();
-    lock.waitLock(10000);
-
-    try {
-      // แถวที่ 1 คือหัวตาราง ดังนั้นรายการแรกต้องเป็น 1
-      const no = Math.max(1, sheet.getLastRow());
-
-      sheet.appendRow([
-        no,
-        data.agency,
-        data.supportType,
-        data.target,
-        data.equipment,
-        data.startDate,
-        data.deliveryDate,
-        data.coordinator,
-        data.phone,
-        new Date()
-      ]);
-
-      SpreadsheetApp.flush();
-
+    // GET ธรรมดา = ตรวจ API
+    if (!e || !e.parameter || e.parameter.action !== 'save') {
       return json_({
         ok: true,
-        no: no,
-        message: 'บันทึกข้อมูลเรียบร้อยแล้ว',
-        sheet: TARGET_SHEET_NAME
+        message: 'API ทำงานแล้ว',
+        sheet: TARGET_SHEET_NAME,
+        mode: 'GET-SAVE'
       });
-    } finally {
-      lock.releaseLock();
     }
+
+    // GET action=save = บันทึกข้อมูลโดยตรง
+    const data = {
+      agency: e.parameter.agency || '',
+      supportType: e.parameter.supportType || '',
+      target: e.parameter.target || '-',
+      equipment: e.parameter.equipment || '-',
+      startDate: e.parameter.startDate || '',
+      deliveryDate: e.parameter.deliveryDate || '',
+      coordinator: e.parameter.coordinator || '',
+      phone: e.parameter.phone || ''
+    };
+
+    return save_(data);
 
   } catch (err) {
     return json_({
@@ -105,6 +48,91 @@ function doPost(e) {
       error: String(err.message || err)
     });
   }
+}
+
+// รองรับ POST เดิมไว้ด้วย เพื่อไม่ทำให้วิธีเดิมเสีย
+function doPost(e) {
+  try {
+    let raw = e && e.postData && e.postData.contents;
+    if ((!raw || !raw.trim()) && e && e.parameter && e.parameter.payload) {
+      raw = e.parameter.payload;
+    }
+    if (!raw) throw new Error('ไม่พบข้อมูล POST');
+
+    return save_(JSON.parse(raw));
+  } catch (err) {
+    return json_({
+      ok: false,
+      error: String(err.message || err)
+    });
+  }
+}
+
+function save_(data) {
+  validate_(data);
+
+  const lock = LockService.getScriptLock();
+  lock.waitLock(15000);
+
+  try {
+    const ss = SpreadsheetApp.openById(SPREADSHEET_ID);
+    let sheet = ss.getSheetByName(TARGET_SHEET_NAME);
+
+    if (!sheet) {
+      sheet = ss.insertSheet(TARGET_SHEET_NAME);
+    }
+
+    // สร้าง/ปรับหัวตารางโดยไม่ลบข้อมูลเดิม
+    if (sheet.getLastRow() === 0) {
+      sheet.getRange(1, 1, 1, HEADERS.length).setValues([HEADERS]);
+      styleHeaders_(sheet);
+    } else if (sheet.getLastColumn() < HEADERS.length) {
+      const firstMissing = sheet.getLastColumn() + 1;
+      const missing = HEADERS.slice(firstMissing - 1);
+      sheet.getRange(1, firstMissing, 1, missing.length).setValues([missing]);
+      sheet.getRange(1, firstMissing, 1, missing.length)
+        .setBackground('#262626')
+        .setFontColor('#ffffff')
+        .setFontWeight('bold');
+    }
+
+    // header อยู่แถว 1: รายการแรก = 1
+    const no = Math.max(1, sheet.getLastRow());
+
+    sheet.getRange(sheet.getLastRow() + 1, 1, 1, HEADERS.length).setValues([[
+      no,
+      data.agency,
+      data.supportType,
+      data.target,
+      data.equipment,
+      data.startDate,
+      data.deliveryDate,
+      data.coordinator,
+      String(data.phone),
+      new Date()
+    ]]);
+
+    SpreadsheetApp.flush();
+
+    return json_({
+      ok: true,
+      saved: true,
+      no: no,
+      sheet: TARGET_SHEET_NAME,
+      message: 'บันทึกข้อมูลเรียบร้อยแล้ว'
+    });
+
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+function styleHeaders_(sheet) {
+  sheet.getRange(1, 1, 1, HEADERS.length)
+    .setBackground('#262626')
+    .setFontColor('#ffffff')
+    .setFontWeight('bold');
+  sheet.setFrozenRows(1);
 }
 
 function validate_(d) {
