@@ -10,9 +10,11 @@
 <script src="https://cdn.tailwindcss.com"></script>
 <style>
 body{font-family:Arial,'Noto Sans Thai',sans-serif}
-.sandalwood-hero{position:relative;overflow:hidden;background:#050505}
-.sandalwood-hero #sandalwoodRain{position:absolute;inset:0;width:100%;height:100%;z-index:0;pointer-events:none}
-.sandalwood-hero .hero-content{position:relative;z-index:2}
+.sandalwood-hero{position:relative;overflow:hidden;background:#000;isolation:isolate}
+.sandalwood-hero::before{content:"";position:absolute;inset:0;z-index:0;background:radial-gradient(circle at 50% 35%,rgba(112,75,31,.16),transparent 55%),linear-gradient(180deg,rgba(0,0,0,.18),rgba(0,0,0,.72));pointer-events:none}
+.sandalwood-hero #sandalwoodRain{position:absolute;inset:0;width:100%;height:100%;z-index:1;pointer-events:none}
+.sandalwood-hero .hero-content{position:relative;z-index:3}
+.sandalwood-hero img,.sandalwood-hero h1,.sandalwood-hero p{filter:drop-shadow(0 2px 8px rgba(0,0,0,.75))}
 @media (prefers-reduced-motion:reduce){.sandalwood-hero #sandalwoodRain{display:none}}
 </style>
 </head>
@@ -135,7 +137,7 @@ toggleFields();
 function initSandalwoodMatrix(){
  const canvas=document.getElementById('sandalwoodRain');
  if(!canvas || window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
- const ctx=canvas.getContext('2d');
+ const ctx=canvas.getContext('2d',{alpha:true});
  let w=0,h=0,dpr=1,items=[],last=0;
 
  function resize(){
@@ -144,69 +146,88 @@ function initSandalwoodMatrix(){
    w=Math.max(1,r.width); h=Math.max(1,r.height);
    canvas.width=Math.round(w*dpr); canvas.height=Math.round(h*dpr);
    ctx.setTransform(dpr,0,0,dpr,0,0);
-   const count=Math.min(42,Math.max(18,Math.floor(w/24)));
+   const count=Math.min(60,Math.max(22,Math.floor(w/18)));
    items=Array.from({length:count},()=>makeFlower(true));
  }
  function makeFlower(initial){
+   const z=.25+Math.random()*.95;
    return {
      x:Math.random()*w,
-     y:initial?Math.random()*h:-20-Math.random()*80,
-     z:.35+Math.random()*.9,
-     size:5+Math.random()*8,
-     speed:.32+Math.random()*1.05,
-     drift:(Math.random()-.5)*.28,
+     y:initial?Math.random()*h:-30-Math.random()*160,
+     z,
+     size:4+Math.random()*9,
+     speed:.42+Math.random()*1.25,
+     drift:(Math.random()-.5)*.38,
      rot:Math.random()*Math.PI*2,
-     spin:(Math.random()-.5)*.018,
-     glow:.15+Math.random()*.35,
-     trail:Math.random()>.35
+     spin:(Math.random()-.5)*.035,
+     sway:Math.random()*Math.PI*2,
+     swaySpeed:.008+Math.random()*.018,
+     glow:.12+Math.random()*.42,
+     trail:Math.random()>.28,
+     opacity:.25+z*.55
    };
  }
  function drawFlower(p){
    const s=p.size*p.z, x=p.x, y=p.y;
-   ctx.save(); ctx.translate(x,y); ctx.rotate(p.rot);
+   ctx.save();
+   ctx.translate(x,y);
+   ctx.rotate(p.rot);
+   ctx.globalAlpha=p.opacity;
    if(p.trail){
-     const g=ctx.createLinearGradient(0,-s*5,0,0);
-     g.addColorStop(0,'rgba(212,167,89,0)');
-     g.addColorStop(1,'rgba(212,167,89,'+(0.08+p.glow*.12)+')');
-     ctx.fillStyle=g; ctx.fillRect(-.7*s,-s*5,1.4*s,s*5);
+     const g=ctx.createLinearGradient(0,-s*6,0,0);
+     g.addColorStop(0,'rgba(224,178,96,0)');
+     g.addColorStop(.65,'rgba(224,178,96,.035)');
+     g.addColorStop(1,'rgba(224,178,96,'+(0.05+p.glow*.12)+')');
+     ctx.fillStyle=g;
+     ctx.fillRect(-.6*s,-s*6,1.2*s,s*6);
    }
-   ctx.shadowBlur=5*s; ctx.shadowColor='rgba(214,171,92,'+p.glow+')';
+   ctx.shadowBlur=6*s;
+   ctx.shadowColor='rgba(225,178,94,'+p.glow+')';
    const petals=5;
    for(let i=0;i<petals;i++){
-     ctx.save(); ctx.rotate(i*Math.PI*2/petals);
-     const grad=ctx.createLinearGradient(0,-s*.1,0,-s*1.65);
-     grad.addColorStop(0,'#d9a85b'); grad.addColorStop(.45,'#8b5a2b'); grad.addColorStop(1,'#3b2413');
+     ctx.save();
+     ctx.rotate(i*Math.PI*2/petals);
+     const grad=ctx.createLinearGradient(0,-s*.05,0,-s*1.7);
+     grad.addColorStop(0,'#f0c778');
+     grad.addColorStop(.28,'#c58a42');
+     grad.addColorStop(.7,'#75491f');
+     grad.addColorStop(1,'#2a180c');
      ctx.fillStyle=grad;
      ctx.beginPath();
      ctx.moveTo(0,0);
-     ctx.bezierCurveTo(-s*.72,-s*.42,-s*.72,-s*1.2,0,-s*1.65);
-     ctx.bezierCurveTo(s*.72,-s*1.2,s*.72,-s*.42,0,0);
+     ctx.bezierCurveTo(-s*.78,-s*.42,-s*.76,-s*1.25,0,-s*1.7);
+     ctx.bezierCurveTo(s*.76,-s*1.25,s*.78,-s*.42,0,0);
      ctx.fill();
+     ctx.strokeStyle='rgba(255,221,154,.22)';
+     ctx.lineWidth=Math.max(.35,s*.055);
+     ctx.stroke();
      ctx.restore();
    }
-   ctx.fillStyle='#f0c777'; ctx.beginPath(); ctx.arc(0,0,s*.24,0,Math.PI*2); ctx.fill();
+   ctx.fillStyle='#ffe0a0';
+   ctx.beginPath(); ctx.arc(0,0,s*.24,0,Math.PI*2); ctx.fill();
    ctx.restore();
  }
- function drawMatrix(){
-   ctx.clearRect(0,0,w,h);
-   ctx.fillStyle='rgba(0,0,0,.18)'; ctx.fillRect(0,0,w,h);
-   for(const p of items){
-     p.y += p.speed*p.z; p.x += p.drift*p.z; p.rot += p.spin*p.z;
-     drawFlower(p);
-     if(p.y>h+safelimit(p) || p.x<-30 || p.x>w+30) Object.assign(p,makeFlower(false));
-   }
- }
- function safelimit(p){ return p.size*4+30; }
  function frame(t){
    if(!last) last=t;
-   const dt=Math.min(32,t-last); last=t;
+   const dt=Math.min(40,t-last);
+   last=t;
    const scale=dt/16.67;
-   for(const p of items){p.y += (p.speed*p.z)*(scale-1);}
-   drawMatrix();
+   ctx.clearRect(0,0,w,h);
+   ctx.fillStyle='rgba(0,0,0,.10)';
+   ctx.fillRect(0,0,w,h);
+   for(const p of items){
+     p.sway+=p.swaySpeed*scale;
+     p.y+=(p.speed*p.z)*scale;
+     p.x+=(p.drift*p.z+Math.sin(p.sway)*.12)*scale;
+     p.rot+=p.spin*p.z*scale;
+     drawFlower(p);
+     if(p.y>h+p.size*5 || p.x<-50 || p.x>w+50) Object.assign(p,makeFlower(false));
+   }
    requestAnimationFrame(frame);
  }
  window.addEventListener('resize',resize,{passive:true});
- resize(); requestAnimationFrame(frame);
+ resize();
+ requestAnimationFrame(frame);
 }
 initSandalwoodMatrix();
 </script>
